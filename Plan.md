@@ -1,7 +1,7 @@
 # Plan:
 - Figure out how to get team wins, and how I want to format this data.
 
-- Figure out exactly what I want to model. Pick the data that I want to get. Start small. As of now, I am thinking of an evaluation function on who won the game, given certain stats for both teams.
+- Build evaluation model which uses certain hitting, pitching, and fielding statistics to predict how much a Team won by.
 
 - Create the script to grab those stats from the mlb api in the least queries, then turn them into a csv. Start very small with the data. 1 season.
 
