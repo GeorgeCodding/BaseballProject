@@ -2,77 +2,72 @@
 import requests
 import time
 import csv
+import json
+from pathlib import Path
 
-def get_nationals_2026_batting_logs():
-    team_id = 120 # MLB's official ID for the Nationals
-    season = 2026
+def fetch_and_save_json(url, save_path):
+    # Fetch the data from the URL
+    response = requests.get(url)
+    
+    # Check if the request was successful
+    if response.status_code == 200:
+        # Extract the JSON data
+        data = response.json()
 
+        file_path = Path(save_path)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Save the JSON data to a file
+        with open(save_path, 'w') as file:
+            json.dump(data, file, indent=4)
+            
+        print(f"Successfully saved JSON to {save_path}")
+    else:
+        print(f"Failed to fetch data. HTTP Status Code: {response.status_code}")
+
+def get_season_schedule(season_year):
     # Step 1: Hit the schedule endpoint to get all games for the 2026 season
-    schedule_url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId={team_id}&season={season}"
+    schedule_url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&season={season_year}"
     print("Fetching 2026 Schedule...")
+    fetch_and_save_json(schedule_url, f"jsons/schedules/mlb_schedule_{season_year}.json")
 
-    schedule_response = requests.get(schedule_url)
-    schedule_data = schedule_response.json() # Parse the JSON response
+def download_season_boxscores(schedule_file_path, output_dir="jsons/boxscores"):
+    """
+    Parses a schedule JSON file and fetches boxscores for all completed 
+    regular season games.
+    """
+    with open(schedule_file_path, 'r') as f:
+        schedule_data = json.load(f)
 
-    batting_logs = []
-
-    print("Fetching boxscore for each game...")
     for date_info in schedule_data.get('dates', []):
         for game in date_info.get('games', []):
-            game_pk = game['gamePk'] # The unique Game ID
-            game_date = game['officialDate']
-            status = game['status']['statusCode']
             
-            # Only pull boxscores for games that are Final ('F'), Game Over ('O'), or Completed Early ('I')
-            if status not in ['F', 'O', 'I']:
-                continue 
-                
-            # Request the specific boxscore for this Game ID
-            boxscore_url = f"https://statsapi.mlb.com/api/v1/game/{game_pk}/boxscore"
-            box_res = requests.get(boxscore_url)
-            box_data = box_res.json()
-            
-            teams = box_data.get('teams', {})
-            
-            # Determine if the Nationals were the home or away team to grab the right stats
-            if teams.get('home', {}).get('team', {}).get('id') == team_id:
-                nat_stats = teams['home']['teamStats']['batting']
-                opponent = teams['away']['team']['name']
-            else:
-                nat_stats = teams['away']['teamStats']['batting']
-                opponent = teams['home']['team']['name']
-                
-            # Step 3: Extract the specific batting metrics you need
-            # You can add more metrics here like OBP, SLG, etc.
-            batting_logs.append({
-                'Date': game_date,
-                'Opponent': opponent,
-                'At Bats': nat_stats.get('atBats', 0),
-                'Runs': nat_stats.get('runs', 0),
-                'Hits': nat_stats.get('hits', 0),
-                'Home Runs': nat_stats.get('homeRuns', 0),
-                'Strikeouts': nat_stats.get('strikeOuts', 0),
-                'Walks': nat_stats.get('baseOnBalls', 0)
-            })
-            print(f"Pulled boxscore for {game_date} vs {opponent}.")
-            # Sleep briefly to avoid overwhelming the MLB API servers
-            time.sleep(0.1)
+            # Filter out Spring Training ('S') and Exhibition ('E') games
+            if game.get('gameType') in ['S', 'E']:
+                continue
 
-    return batting_logs
+            # Only process games that are finished
+            if game.get('status', {}).get('abstractGameState') != 'Final':
+                continue
+
+            game_pk = game['gamePk']
+            home_team = game['teams']['home']['team']['name']
+            save_path = Path(output_dir) / home_team / f"boxscore_{game_pk}.json"
+
+            # Skip network request if already downloaded
+            if save_path.exists():
+                continue
+
+            boxscore_url = f"https://statsapi.mlb.com/api/v1/game/{game_pk}/boxscore"
+            fetch_and_save_json(boxscore_url, save_path)
+            
+            time.sleep(0.1)
 
 # Run the function and print the first 5 games to verify it works
 if __name__ == "__main__":
-    logs = get_nationals_2026_batting_logs()
-    
-    if logs: 
-        filename = 'nationals_2026_batting_logs.csv'
-        with open(filename, mode='w', newline='') as csvfile:
-            fieldnames = ['Date', 'Opponent', 'At Bats', 'Runs', 'Hits', 'Home Runs', 'Strikeouts', 'Walks']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        
-            writer.writeheader()
-            for log in logs:
-                writer.writerow(log)
-        print(f"\nSuccess! Pulled {len(logs)} completed games and saved them to '{filename}'.")
-    else:
-        print("\nNo completed games were found to save.")
+    # season_year = 2026
+    # get_season_schedule(season_year)
+
+    season_json_path = "jsons/schedules/mlb_schedule_2026.json"
+    boxscore_save_path = "jsons/boxscores/2026/"
+    download_season_boxscores(season_json_path, boxscore_save_path)
