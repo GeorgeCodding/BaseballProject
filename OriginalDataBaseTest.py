@@ -26,9 +26,9 @@ def fetch_and_save_json(url, save_path):
         print(f"Failed to fetch data. HTTP Status Code: {response.status_code}")
 
 def get_season_schedule(season_year):
-    # Step 1: Hit the schedule endpoint to get all games for the 2026 season
+    # Step 1: Hit the schedule endpoint to get all games for the {season_year} season
     schedule_url = f"https://statsapi.mlb.com/api/v1/schedule?sportId=1&season={season_year}"
-    print("Fetching 2026 Schedule...")
+    print("Fetching ", season_year," Schedule...")
     fetch_and_save_json(schedule_url, f"jsons/schedules/mlb_schedule_{season_year}.json")
 
 def download_season_boxscores(schedule_file_path, output_dir="jsons/boxscores"):
@@ -65,9 +65,8 @@ def download_season_boxscores(schedule_file_path, output_dir="jsons/boxscores"):
 
 # Run the function and print the first 5 games to verify it works
 if __name__ == "__main__":
-    # season_year = 2026
-    # get_season_schedule(season_year)
-
-    season_json_path = "jsons/schedules/mlb_schedule_2026.json"
-    boxscore_save_path = "jsons/boxscores/2026/"
-    download_season_boxscores(season_json_path, boxscore_save_path)
+    for i in range(2020, 2025):
+        get_season_schedule(i)
+        season_json_path = f"jsons/schedules/mlb_schedule_{i}.json"
+        boxscore_save_path = f"jsons/boxscores/{i}/"
+        download_season_boxscores(season_json_path, boxscore_save_path)
