@@ -65,7 +65,7 @@ def download_season_boxscores(schedule_file_path, output_dir="jsons/boxscores"):
 
 # Run the function and print the first 5 games to verify it works
 if __name__ == "__main__":
-    for i in range(2020, 2025):
+    for i in range(2025, 2026):
         get_season_schedule(i)
         season_json_path = f"jsons/schedules/mlb_schedule_{i}.json"
         boxscore_save_path = f"jsons/boxscores/{i}/"
